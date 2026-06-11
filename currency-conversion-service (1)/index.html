@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conversión de Divisas</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --input-bg: #0f172a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      line-height: 1.5;
+    }
+    .container { width: 100%; max-width: 560px; }
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 { font-size: 1.75rem; font-weight: 700; }
+    header p { color: var(--muted); margin-top: 0.5rem; font-size: 0.95rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+    }
+    .field { margin-bottom: 1rem; }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    .row { display: flex; gap: 0.75rem; }
+    .row .field { flex: 1; }
+    button {
+      width: 100%;
+      padding: 0.85rem;
+      background: var(--accent);
+      color: #042f1f;
+      border: none;
+      border-radius: 9px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+    button:hover { background: var(--accent-hover); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .result {
+      margin-top: 1.25rem;
+      padding: 1.1rem;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      text-align: center;
+      min-height: 64px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .result .amount { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+    .result .rate { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; }
+    .result .placeholder { color: var(--muted); font-size: 0.95rem; }
+    footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Conversión de Divisas</h1>
+      <p>Convierte entre Pesos MX, Euro, Dólar US, Dólar Canadiense y Libra con tasas en tiempo real</p>
+    </header>
+
+    <div class="card">
+      <div class="field">
+        <label for="amount">Cantidad</label>
+        <input type="number" id="amount" value="100" min="0" step="0.01" />
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="from">De</label>
+          <select id="from">
+            <option value="EUR">Euro (EUR)</option>
+            <option value="USD">Dólar US (USD)</option>
+            <option value="CAD">Dólar Canadiense (CAD)</option>
+            <option value="GBP">Libra (GBP)</option>
+            <option value="MXN">Pesos MX (MXN)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="to">A</label>
+          <select id="to">
+            <option value="MXN">Pesos MX (MXN)</option>
+            <option value="EUR">Euro (EUR)</option>
+            <option value="USD">Dólar US (USD)</option>
+            <option value="CAD">Dólar Canadiense (CAD)</option>
+            <option value="GBP">Libra (GBP)</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="convert">Convertir</button>
+
+      <div class="result">
+        <span class="placeholder" id="result">El resultado aparecerá aquí</span>
+      </div>
+    </div>
+
+    <footer>Tasas proporcionadas por open.er-api.com</footer>
+  </div>
+
+  <script>
+    const names = {
+      EUR: "Euro", USD: "Dólar US", CAD: "Dólar Canadiense",
+      GBP: "Libra", MXN: "Pesos MX"
+    };
+
+    async function convert() {
+      const btn = document.getElementById("convert");
+      const result = document.querySelector(".result");
+      const amount = parseFloat(document.getElementById("amount").value);
+      const from = document.getElementById("from").value;
+      const to = document.getElementById("to").value;
+
+      if (isNaN(amount) || amount < 0) {
+        result.innerHTML = '<span class="placeholder">Ingresa una cantidad válida</span>';
+        return;
+      }
+      if (from === to) {
+        result.innerHTML = '<span class="placeholder">Elige monedas diferentes</span>';
+        return;
+      }
+
+      btn.disabled = true;
+      result.innerHTML = '<span class="placeholder">Calculando...</span>';
+
+      try {
+        const res = await fetch("https://open.er-api.com/v6/latest/" + from);
+        const data = await res.json();
+        if (data.result !== "success") throw new Error("API error");
+
+        const rate = data.rates[to];
+        const converted = amount * rate;
+
+        result.innerHTML =
+          '<span class="amount">' +
+          converted.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
+          " " + to + "</span>" +
+          '<span class="rate">' + amount.toLocaleString("es-MX") + " " + names[from] +
+          " → " + names[to] + " · 1 " + from + " = " + rate.toFixed(4) + " " + to + "</span>";
+      } catch (e) {
+        result.innerHTML = '<span class="placeholder">Error al obtener las tasas. Intenta de nuevo.</span>';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById("convert").addEventListener("click", convert);
+    convert();
+  </script>
+</body>
+</html>
